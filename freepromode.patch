@@ -1,5 +1,5 @@
 diff --git a/code/game/bg_pmove.c b/code/game/bg_pmove.c
-index bc14573..963775f 100644
+index bc14573..4d8f732 100644
 --- a/code/game/bg_pmove.c
 +++ b/code/game/bg_pmove.c
 @@ -40,6 +40,7 @@ const float	pm_swimFastScale = 5.0f;
@@ -146,7 +146,7 @@ index bc14573..963775f 100644
  
  	if ( pm->ps->pm_flags & PMF_RESPAWNED ) {
  		return qfalse;		// don't allow jump until all buttons are up
-@@ -412,7 +455,19 @@ static qboolean PM_CheckJump( void )
+@@ -412,7 +455,20 @@ static qboolean PM_CheckJump( void )
  	pm->ps->pm_flags |= PMF_JUMP_HELD;
  
  	pm->ps->groundEntityNum = ENTITYNUM_NONE;
@@ -155,6 +155,7 @@ index bc14573..963775f 100644
 +	velocity[0] = pm->ps->velocity[0];
 +	velocity[1] = pm->ps->velocity[1];
 +	velocity[2] = 0.0f;
++	
 +	if (DotProduct(velocity, pml.groundTrace.plane.normal) < 0.0f) {
 +		// rampBoost = 4.0f*VectorLength(pm->ps->velocity)*(1.0f - pml.groundTrace.plane.normal[2]);
 +		rampBoost = -1.25f*DotProduct(velocity, pml.groundTrace.plane.normal);
@@ -162,12 +163,12 @@ index bc14573..963775f 100644
 +	} else {
 +		rampBoost = 0.0f;
 +	}
-+	Com_Printf("Up: %f\n", rampBoost);
++	
 +	pm->ps->velocity[2] = JUMP_VELOCITY + rampBoost;
  	PM_AddEvent( EV_JUMP );
  
  	if ( pm->cmd.forwardmove >= 0 ) {
-@@ -667,7 +722,7 @@ static void PM_AirMove( void )
+@@ -667,7 +723,7 @@ static void PM_AirMove( void )
  	wishspeed *= scale;
  
  	// not on ground, so little effect on velocity
@@ -176,7 +177,7 @@ index bc14573..963775f 100644
  
  	// we may have a ground plane that is very steep, even
  	// though we don't have a groundentity
-@@ -732,7 +787,6 @@ static void PM_WalkMove( void )
+@@ -732,7 +788,6 @@ static void PM_WalkMove( void )
  	float		wishspeed;
  	float		scale;
  	usercmd_t	cmd;
@@ -184,7 +185,7 @@ index bc14573..963775f 100644
  	float		vel;
  
  	if ( pm->waterlevel > 2 && DotProduct( pml.forward, pml.groundTrace.plane.normal ) > 0 ) {
-@@ -804,14 +858,11 @@ static void PM_WalkMove( void )
+@@ -804,14 +859,11 @@ static void PM_WalkMove( void )
  	// when a player gets hit, they temporarily lose
  	// full control, which allows them to be moved a bit
  	if ( ( pml.groundTrace.surfaceFlags & SURF_SLICK ) || pm->ps->pm_flags & PMF_TIME_KNOCKBACK ) {
