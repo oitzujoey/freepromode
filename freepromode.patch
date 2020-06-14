@@ -1,0 +1,204 @@
+diff --git a/code/game/bg_pmove.c b/code/game/bg_pmove.c
+index bc14573..963775f 100644
+--- a/code/game/bg_pmove.c
++++ b/code/game/bg_pmove.c
+@@ -40,6 +40,7 @@ const float	pm_swimFastScale = 5.0f;
+ 
+ float	pm_accelerate = 10.0f;
+ float	pm_airaccelerate = 1.0f;
++float	pm_bhopaccelerate = 100.0f;
+ float	pm_wateraccelerate = 4.0f;
+ float	pm_flyaccelerate = 8.0f;
+ 
+@@ -246,49 +247,90 @@ static void PM_Friction( void )
+ ==============
+ PM_Accelerate
+ 
+-TODO: bunny hoping
+-
+ Handles user intended acceleration
+ ==============
+ */
+-static void PM_Accelerate( vec3_t wishdir, float wishspeed, float accel )
+-{
+-	if(! (pm->pmove_flags & DF_NO_BUNNY) ) {
+-		// q2 style
+-		int			i;
+-		float		addspeed, accelspeed, currentspeed;
+-
+-		currentspeed = DotProduct (pm->ps->velocity, wishdir);
+-		addspeed = wishspeed - currentspeed;
+-		if (addspeed <= 0) {
+-			return;
+-		}
+-		accelspeed = accel*pml.frametime*wishspeed;
+-		if (accelspeed > addspeed) {
+-			accelspeed = addspeed;
+-		}
++static void PM_Accelerate( vec3_t wishdir, float wishspeed, float accel ) {
+ 
+-		for (i=0 ; i<3 ; i++) {
+-			pm->ps->velocity[i] += accelspeed*wishdir[i];
+-		}
++	// q2 style
++	int			i;
++	float		addspeed, accelspeed, currentspeed;
++
++	currentspeed = DotProduct (pm->ps->velocity, wishdir);
++	addspeed = wishspeed - currentspeed;
++	if (addspeed <= 0) {
++		return;
+ 	}
+-	else {
+-		// proper way (avoids strafe jump maxspeed bug), but feels bad
+-		vec3_t		wishVelocity;
+-		vec3_t		pushDir;
+-		float		pushLen;
+-		float		canPush;
++	accelspeed = accel*pml.frametime*wishspeed;
++	if (accelspeed > addspeed) {
++		accelspeed = addspeed;
++	}
++	
++	for (i=0 ; i<3 ; i++) {
++		pm->ps->velocity[i] += accelspeed*wishdir[i];
++	}
++}
+ 
+-		VectorScale( wishdir, wishspeed, wishVelocity );
+-		VectorSubtract( wishVelocity, pm->ps->velocity, pushDir );
+-		pushLen = VectorNormalize( pushDir );
+ 
+-		canPush = accel*pml.frametime*wishspeed;
+-		if (canPush > pushLen) {
+-			canPush = pushLen;
+-		}
++/*
++==============
++PM_AirAccelerate
++
++Handles user intended air acceleration
++==============
++*/
++static void PM_AirAccelerate( vec3_t wishdir, float wishspeed ) {
+ 
+-		VectorMA( pm->ps->velocity, canPush, pushDir, pm->ps->velocity );
++	int			i;
++	float		addspeed, accelspeed, currentspeed;
++	float 		accel;
++	int			mode = 0;
++	const int	FB = 1;
++	const int	RL = 2;
++	vec3_t		velocity;
++	float		speed;
++
++	mode |= (pm->cmd.forwardmove != 0);
++	mode |= (pm->cmd.rightmove != 0)<<1;
++
++	if (!(mode & FB) && (mode & RL)) {
++		if (wishspeed > 30)
++			wishspeed = 30;
++		accel = pm_bhopaccelerate;
++	} else if ((mode & FB) && !(mode & RL)) {
++		accel = pm_airaccelerate;
++	} else {
++		accel = pm_airaccelerate;
++	}
++
++	currentspeed = DotProduct (pm->ps->velocity, wishdir);
++	addspeed = wishspeed - currentspeed;
++
++	if (addspeed <= 0) {
++		if ((mode & FB) && !(mode & RL)) {
++			for (i = 0; i < 2; i++)
++				velocity[i] = pm->ps->velocity[i];
++			velocity[2] = 0;
++			
++			speed = VectorLength(velocity);
++
++			velocity[0] += wishdir[0] * speed * 0.02;
++			velocity[1] += wishdir[1] * speed * 0.02;
++			VectorNormalize(velocity);
++
++			for (i=0 ; i<2 ; i++) {
++				pm->ps->velocity[i] = speed*velocity[i];
++			}
++		}
++		return;
++	}
++	accelspeed = accel*pml.frametime*wishspeed;
++	if (accelspeed > addspeed) {
++		accelspeed = addspeed;
++	}
++	
++	for (i=0 ; i<3 ; i++) {
++		pm->ps->velocity[i] += accelspeed*wishdir[i];	
+ 	}
+ }
+ 
+@@ -385,7 +427,8 @@ PM_CheckJump
+ */
+ static qboolean PM_CheckJump( void )
+ {
+-
++	float rampBoost;
++	vec3_t velocity;
+ 
+ 	if ( pm->ps->pm_flags & PMF_RESPAWNED ) {
+ 		return qfalse;		// don't allow jump until all buttons are up
+@@ -412,7 +455,19 @@ static qboolean PM_CheckJump( void )
+ 	pm->ps->pm_flags |= PMF_JUMP_HELD;
+ 
+ 	pm->ps->groundEntityNum = ENTITYNUM_NONE;
+-	pm->ps->velocity[2] = JUMP_VELOCITY;
++
++	velocity[0] = pm->ps->velocity[0];
++	velocity[1] = pm->ps->velocity[1];
++	velocity[2] = 0.0f;
++	if (DotProduct(velocity, pml.groundTrace.plane.normal) < 0.0f) {
++		// rampBoost = 4.0f*VectorLength(pm->ps->velocity)*(1.0f - pml.groundTrace.plane.normal[2]);
++		rampBoost = -1.25f*DotProduct(velocity, pml.groundTrace.plane.normal);
++		rampBoost = (rampBoost < 0.0f) ? 0.0f : rampBoost;
++	} else {
++		rampBoost = 0.0f;
++	}
++	Com_Printf("Up: %f\n", rampBoost);
++	pm->ps->velocity[2] = JUMP_VELOCITY + rampBoost;
+ 	PM_AddEvent( EV_JUMP );
+ 
+ 	if ( pm->cmd.forwardmove >= 0 ) {
+@@ -667,7 +722,7 @@ static void PM_AirMove( void )
+ 	wishspeed *= scale;
+ 
+ 	// not on ground, so little effect on velocity
+-	PM_Accelerate (wishdir, wishspeed, pm_airaccelerate);
++	PM_AirAccelerate (wishdir, wishspeed);
+ 
+ 	// we may have a ground plane that is very steep, even
+ 	// though we don't have a groundentity
+@@ -732,7 +787,6 @@ static void PM_WalkMove( void )
+ 	float		wishspeed;
+ 	float		scale;
+ 	usercmd_t	cmd;
+-	float		accelerate;
+ 	float		vel;
+ 
+ 	if ( pm->waterlevel > 2 && DotProduct( pml.forward, pml.groundTrace.plane.normal ) > 0 ) {
+@@ -804,14 +858,11 @@ static void PM_WalkMove( void )
+ 	// when a player gets hit, they temporarily lose
+ 	// full control, which allows them to be moved a bit
+ 	if ( ( pml.groundTrace.surfaceFlags & SURF_SLICK ) || pm->ps->pm_flags & PMF_TIME_KNOCKBACK ) {
+-		accelerate = pm_airaccelerate;
+-	}
+-	else {
+-		accelerate = pm_accelerate;
++		PM_AirAccelerate (wishdir, wishspeed);
++	} else {
++		PM_Accelerate (wishdir, wishspeed, pm_accelerate);
+ 	}
+ 
+-	PM_Accelerate (wishdir, wishspeed, accelerate);
+-
+ 	if ( ( pml.groundTrace.surfaceFlags & SURF_SLICK ) || pm->ps->pm_flags & PMF_TIME_KNOCKBACK ) {
+ 		pm->ps->velocity[2] -= pm->ps->gravity * pml.frametime;
+ 	}
