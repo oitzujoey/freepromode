@@ -1,16 +1,27 @@
 diff --git a/code/game/bg_pmove.c b/code/game/bg_pmove.c
-index bc14573..4d8f732 100644
+index bc14573..4f593fb 100644
 --- a/code/game/bg_pmove.c
 +++ b/code/game/bg_pmove.c
 @@ -40,6 +40,7 @@ const float	pm_swimFastScale = 5.0f;
  
  float	pm_accelerate = 10.0f;
  float	pm_airaccelerate = 1.0f;
-+float	pm_bhopaccelerate = 100.0f;
++float	pm_bhopaccelerate = 70.0f;
  float	pm_wateraccelerate = 4.0f;
  float	pm_flyaccelerate = 8.0f;
  
-@@ -246,49 +247,90 @@ static void PM_Friction( void )
+@@ -48,6 +49,10 @@ float	pm_waterfriction = 1.0f;
+ float	pm_flightfriction = 3.0f;
+ float	pm_spectatorfriction = 5.0f;
+ 
++float cpm_pm_jump_z = 100.0f;
++float cpm_pm_aircontrol = 150.0f;
++float cpm_pm_airstopaccelerate = 2.5f;
++
+ int		c_pmove = 0;
+ 
+ extern	vmCvar_t	cg_enableQ;		// leilei - map changes player/weapons scale (for q1 adaptations)
+@@ -246,49 +251,112 @@ static void PM_Friction( void )
  ==============
  PM_Accelerate
  
@@ -31,15 +42,8 @@ index bc14573..4d8f732 100644
 -		if (addspeed <= 0) {
 -			return;
 -		}
--		accelspeed = accel*pml.frametime*wishspeed;
--		if (accelspeed > addspeed) {
--			accelspeed = addspeed;
--		}
 +static void PM_Accelerate( vec3_t wishdir, float wishspeed, float accel ) {
- 
--		for (i=0 ; i<3 ; i++) {
--			pm->ps->velocity[i] += accelspeed*wishdir[i];
--		}
++
 +	// q2 style
 +	int			i;
 +	float		addspeed, accelspeed, currentspeed;
@@ -48,13 +52,7 @@ index bc14573..4d8f732 100644
 +	addspeed = wishspeed - currentspeed;
 +	if (addspeed <= 0) {
 +		return;
- 	}
--	else {
--		// proper way (avoids strafe jump maxspeed bug), but feels bad
--		vec3_t		wishVelocity;
--		vec3_t		pushDir;
--		float		pushLen;
--		float		canPush;
++	}
 +	accelspeed = accel*pml.frametime*wishspeed;
 +	if (accelspeed > addspeed) {
 +		accelspeed = addspeed;
@@ -64,15 +62,8 @@ index bc14573..4d8f732 100644
 +		pm->ps->velocity[i] += accelspeed*wishdir[i];
 +	}
 +}
- 
--		VectorScale( wishdir, wishspeed, wishVelocity );
--		VectorSubtract( wishVelocity, pm->ps->velocity, pushDir );
--		pushLen = VectorNormalize( pushDir );
- 
--		canPush = accel*pml.frametime*wishspeed;
--		if (canPush > pushLen) {
--			canPush = pushLen;
--		}
++
++
 +/*
 +==============
 +PM_AirAccelerate
@@ -81,10 +72,9 @@ index bc14573..4d8f732 100644
 +==============
 +*/
 +static void PM_AirAccelerate( vec3_t wishdir, float wishspeed ) {
- 
--		VectorMA( pm->ps->velocity, canPush, pushDir, pm->ps->velocity );
++
 +	int			i;
-+	float		addspeed, accelspeed, currentspeed;
++	float		addspeed, accelspeed, dot, zspeed, k;
 +	float 		accel;
 +	int			mode = 0;
 +	const int	FB = 1;
@@ -95,48 +85,85 @@ index bc14573..4d8f732 100644
 +	mode |= (pm->cmd.forwardmove != 0);
 +	mode |= (pm->cmd.rightmove != 0)<<1;
 +
++	accel = pm_airaccelerate;
++
 +	if (!(mode & FB) && (mode & RL)) {
 +		if (wishspeed > 30)
 +			wishspeed = 30;
 +		accel = pm_bhopaccelerate;
-+	} else if ((mode & FB) && !(mode & RL)) {
-+		accel = pm_airaccelerate;
-+	} else {
-+		accel = pm_airaccelerate;
 +	}
 +
-+	currentspeed = DotProduct (pm->ps->velocity, wishdir);
-+	addspeed = wishspeed - currentspeed;
++	dot = DotProduct (pm->ps->velocity, wishdir);
++	addspeed = wishspeed - dot;
 +
-+	if (addspeed <= 0) {
-+		if ((mode & FB) && !(mode & RL)) {
++	if (dot < 0 && (mode & FB) && !(mode & RL))
++		accel = cpm_pm_airstopaccelerate;
++
++	if (addspeed > 0) {
+ 		accelspeed = accel*pml.frametime*wishspeed;
+ 		if (accelspeed > addspeed) {
+ 			accelspeed = addspeed;
+ 		}
+-
++		
+ 		for (i=0 ; i<3 ; i++) {
+-			pm->ps->velocity[i] += accelspeed*wishdir[i];
++			pm->ps->velocity[i] += accelspeed*wishdir[i];	
+ 		}
+ 	}
+-	else {
+-		// proper way (avoids strafe jump maxspeed bug), but feels bad
+-		vec3_t		wishVelocity;
+-		vec3_t		pushDir;
+-		float		pushLen;
+-		float		canPush;
+ 
+-		VectorScale( wishdir, wishspeed, wishVelocity );
+-		VectorSubtract( wishVelocity, pm->ps->velocity, pushDir );
+-		pushLen = VectorNormalize( pushDir );
++	if ((mode & FB) && !(mode & RL)) {
++
++		if (wishspeed == 0.0f)
++			return;
++		// for (i = 0; i < 2; i++)
++		// 	velocity[i] = pm->ps->velocity[i];
++		// velocity[2] = 0;
++		
++		// speed = VectorLength(velocity);
++
++		// velocity[0] += wishdir[0] * speed * 0.02;
++		// velocity[1] += wishdir[1] * speed * 0.02;
++		// VectorNormalize(velocity);
++
++		// for (i=0 ; i<2 ; i++) {
++		// 	pm->ps->velocity[i] = speed*velocity[i];
++		// }
+ 
+-		canPush = accel*pml.frametime*wishspeed;
+-		if (canPush > pushLen) {
+-			canPush = pushLen;
++		zspeed = pm->ps->velocity[2];
++		pm->ps->velocity[2] = 0;
++		speed = VectorNormalize(pm->ps->velocity);
++
++		dot = DotProduct (pm->ps->velocity, wishdir);
++		k = 32.0f;
++		k *= cpm_pm_aircontrol*dot*dot*pml.frametime;
++
++		if (dot > 0) {
 +			for (i = 0; i < 2; i++)
-+				velocity[i] = pm->ps->velocity[i];
-+			velocity[2] = 0;
-+			
-+			speed = VectorLength(velocity);
-+
-+			velocity[0] += wishdir[0] * speed * 0.02;
-+			velocity[1] += wishdir[1] * speed * 0.02;
-+			VectorNormalize(velocity);
-+
-+			for (i=0 ; i<2 ; i++) {
-+				pm->ps->velocity[i] = speed*velocity[i];
-+			}
-+		}
-+		return;
-+	}
-+	accelspeed = accel*pml.frametime*wishspeed;
-+	if (accelspeed > addspeed) {
-+		accelspeed = addspeed;
-+	}
-+	
-+	for (i=0 ; i<3 ; i++) {
-+		pm->ps->velocity[i] += accelspeed*wishdir[i];	
++				pm->ps->velocity[i] = pm->ps->velocity[i]*speed + wishdir[i]*k;
++			VectorNormalize(pm->ps->velocity);
+ 		}
+ 
+-		VectorMA( pm->ps->velocity, canPush, pushDir, pm->ps->velocity );
++		for (i=0; i < 2; i++)
++			pm ->ps->velocity[i] *= speed;
++		pm->ps->velocity[2] = zspeed;
  	}
  }
  
-@@ -385,7 +427,8 @@ PM_CheckJump
+@@ -385,7 +453,8 @@ PM_CheckJump
  */
  static qboolean PM_CheckJump( void )
  {
@@ -146,7 +173,7 @@ index bc14573..4d8f732 100644
  
  	if ( pm->ps->pm_flags & PMF_RESPAWNED ) {
  		return qfalse;		// don't allow jump until all buttons are up
-@@ -412,7 +455,20 @@ static qboolean PM_CheckJump( void )
+@@ -412,7 +481,24 @@ static qboolean PM_CheckJump( void )
  	pm->ps->pm_flags |= PMF_JUMP_HELD;
  
  	pm->ps->groundEntityNum = ENTITYNUM_NONE;
@@ -165,10 +192,14 @@ index bc14573..4d8f732 100644
 +	}
 +	
 +	pm->ps->velocity[2] = JUMP_VELOCITY + rampBoost;
++	if (pm->ps->stats[STAT_JUMPTIME] > 0) {
++		pm->ps->velocity[2] += cpm_pm_jump_z;
++	}
++	pm->ps->stats[STAT_JUMPTIME] = 400;
  	PM_AddEvent( EV_JUMP );
  
  	if ( pm->cmd.forwardmove >= 0 ) {
-@@ -667,7 +723,7 @@ static void PM_AirMove( void )
+@@ -667,7 +753,7 @@ static void PM_AirMove( void )
  	wishspeed *= scale;
  
  	// not on ground, so little effect on velocity
@@ -177,7 +208,7 @@ index bc14573..4d8f732 100644
  
  	// we may have a ground plane that is very steep, even
  	// though we don't have a groundentity
-@@ -732,7 +788,6 @@ static void PM_WalkMove( void )
+@@ -732,7 +818,6 @@ static void PM_WalkMove( void )
  	float		wishspeed;
  	float		scale;
  	usercmd_t	cmd;
@@ -185,7 +216,7 @@ index bc14573..4d8f732 100644
  	float		vel;
  
  	if ( pm->waterlevel > 2 && DotProduct( pml.forward, pml.groundTrace.plane.normal ) > 0 ) {
-@@ -804,14 +859,11 @@ static void PM_WalkMove( void )
+@@ -804,14 +889,11 @@ static void PM_WalkMove( void )
  	// when a player gets hit, they temporarily lose
  	// full control, which allows them to be moved a bit
  	if ( ( pml.groundTrace.surfaceFlags & SURF_SLICK ) || pm->ps->pm_flags & PMF_TIME_KNOCKBACK ) {
@@ -202,4 +233,45 @@ index bc14573..4d8f732 100644
 -
  	if ( ( pml.groundTrace.surfaceFlags & SURF_SLICK ) || pm->ps->pm_flags & PMF_TIME_KNOCKBACK ) {
  		pm->ps->velocity[2] -= pm->ps->gravity * pml.frametime;
+ 	}
+@@ -2102,6 +2184,9 @@ void PmoveSingle (pmove_t *pmove)
+ 
+ 	PM_DropTimers();
+ 
++	if (pm->ps->stats[STAT_JUMPTIME] > 0)
++		pm->ps->stats[STAT_JUMPTIME] -= pml.msec;
++
+ 	if ( pm->ps->powerups[PW_INVULNERABILITY] ) {
+ 		PM_InvulnerabilityMove();
+ 	}
+diff --git a/code/game/bg_public.h b/code/game/bg_public.h
+index bf226a9..34fb42c 100644
+--- a/code/game/bg_public.h
++++ b/code/game/bg_public.h
+@@ -251,7 +251,8 @@ typedef enum {
+ 	STAT_DEAD_YAW,					// look this direction when dead (FIXME: get rid of?)
+ 	STAT_CLIENTS_READY,				// bit mask of clients wishing to exit the intermission (FIXME: configstring?)
+ 	STAT_MAX_HEALTH,					// health / armor limit, changable by handicap
+-	STAT_PERSISTANT_POWERUP
++	STAT_PERSISTANT_POWERUP,
++	STAT_JUMPTIME
+ } statIndex_t;
+ 
+ 
+diff --git a/code/game/g_combat.c b/code/game/g_combat.c
+index 0f83700..9011584 100644
+--- a/code/game/g_combat.c
++++ b/code/game/g_combat.c
+@@ -1498,7 +1498,11 @@ qboolean G_RadiusDamage ( vec3_t origin, gentity_t *attacker, float damage, floa
+ 			VectorSubtract (ent->r.currentOrigin, origin, dir);
+ 			// push the center of mass higher than the origin so players
+ 			// get knocked into the air more
+-			dir[2] += 24;
++			if (ent == attacker)
++				dir[2] += 24;
++			else
++				dir[2] += 40;
++			
+ 			G_Damage (ent, NULL, attacker, dir, origin, (int)points, DAMAGE_RADIUS, mod);
+ 		}
  	}
