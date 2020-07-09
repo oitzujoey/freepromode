@@ -107,8 +107,7 @@ index bc14573..4f593fb 100644
 -
 +		
  		for (i=0 ; i<3 ; i++) {
--			pm->ps->velocity[i] += accelspeed*wishdir[i];
-+			pm->ps->velocity[i] += accelspeed*wishdir[i];	
+			pm->ps->velocity[i] += accelspeed*wishdir[i];
  		}
  	}
 -	else {
