@@ -11,7 +11,7 @@ Free ProMode is an OpenArena mod that provides CPM physics under the GPL v2 lice
 | float | g_aircontrol | Server | 0 | CPM air control. 0.02 is a good number. |
 | float | g_strafeaccelerate | Server | 1 | Air acceleration that is only applied when strafing in a CPM-like mode (g_cpmkbd || g_orikbd) |
 | float | g_wishspeed | Server | 30 | The thing that makes you go slow in Q1 |
-| float | g_rampboost | Server | 0 | Give a boost when jumping up ramps. 2.5 is a good number. |
+| bool | g_rampboost | Server | 0 | Give a boost when jumping up ramps. |
 | float | g_acclerate | Server | 10 | pm_accelerate: Ground acceleration |
 | float | g_airacclerate | Server | 1 | pm_airaccelerate: Air acceleration |
 | float | g_friction | Server | 6 | pm_friction: Ground friction |

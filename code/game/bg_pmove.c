@@ -450,9 +450,6 @@ PM_CheckJump
 */
 static qboolean PM_CheckJump( void )
 {
-	float rampBoost;
-	vec3_t velocity;
-
 	if ( pm->ps->pm_flags & PMF_RESPAWNED ) {
 		return qfalse;		// don't allow jump until all buttons are up
 	}
@@ -488,19 +485,13 @@ static qboolean PM_CheckJump( void )
 	}
 
 	// Ramp boost
-	velocity[0] = pm->ps->velocity[0];
-	velocity[1] = pm->ps->velocity[1];
-	velocity[2] = 0.0f;
-
-	if (g_rampboost.value && g_promode.integer) {
-		if (DotProduct(velocity, pml.groundTrace.plane.normal) < 0.0f) {
-			rampBoost = -g_rampboost.value*DotProduct(velocity, pml.groundTrace.plane.normal);
-			rampBoost = (rampBoost < 0.0f) ? 0.0f : rampBoost;
-		} else {
-			rampBoost = 0.0f;
-		}
-		pm->ps->velocity[2] += rampBoost;
+	if (g_rampboost.integer) {
+		pm->ps->velocity[2] += JUMP_VELOCITY;
+		if (pm->ps->velocity[2] < JUMP_VELOCITY)
+			pm->ps->velocity[2] = JUMP_VELOCITY;
 	}
+	else
+		pm->ps->velocity[2] = JUMP_VELOCITY;
 
 	PM_AddEvent( EV_JUMP );
 
