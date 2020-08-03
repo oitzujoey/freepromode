@@ -48,8 +48,6 @@ float	pm_spectatorfriction = 5.0f;
 
 int		c_pmove = 0;
 
-float jump_timer;
-
 extern	vmCvar_t	cg_enableQ;		// leilei - map changes player/weapons scale (for q1 adaptations)
 /*
 ===============
@@ -210,7 +208,7 @@ static void PM_Friction( void )
 			// if getting knocked back, no friction
 			if ( ! (pm->ps->pm_flags & PMF_TIME_KNOCKBACK) ) {
 				control = speed < pm_stopspeed ? pm_stopspeed : speed;
-				drop += control*pm_friction*pml.frametime;
+				drop += control*g_friction.value*pml.frametime;
 			}
 		}
 	}
@@ -306,26 +304,11 @@ static void PM_Accelerate( vec3_t wishdir, float wishspeed, float accel )
 	if(! (pm->pmove_flags & DF_NO_BUNNY) ) {
 		// q2 style
 		int			i;
-		float		addspeed, accelspeed, currentspeed, speed, zvelocity;
+		float		addspeed, accelspeed, currentspeed;
 
 		currentspeed = DotProduct (pm->ps->velocity, wishdir);
 		addspeed = wishspeed - currentspeed;
-		if (addspeed <= 0) {// Air control
-			if (g_promode.integer && pm->cmd.rightmove == 0 && pm->cmd.forwardmove != 0) {
-				zvelocity = pm->ps->velocity[2];
-				pm->ps->velocity[2] = 0;
-
-				speed = VectorLength(pm->ps->velocity);
-
-				pm->ps->velocity[0] += wishdir[0] * speed * g_aircontrol.value;
-				pm->ps->velocity[1] += wishdir[1] * speed * g_aircontrol.value;
-				VectorNormalize(pm->ps->velocity);
-
-				for (i=0 ; i<2 ; i++)
-					pm->ps->velocity[i] = speed*pm->ps->velocity[i];
-
-				pm->ps->velocity[2] = zvelocity;
-			}
+		if (addspeed <= 0) {
 			return;
 		}
 		accelspeed = accel*pml.frametime*wishspeed;
@@ -475,23 +458,22 @@ static qboolean PM_CheckJump( void )
 	pm->ps->pm_flags |= PMF_JUMP_HELD;
 
 	pm->ps->groundEntityNum = ENTITYNUM_NONE;
-	pm->ps->velocity[2] = JUMP_VELOCITY;
-
-	// Double jump
-	if (g_doublejump.value && g_promode.integer) {
-		if (jump_timer > 0)
-			pm->ps->velocity[2] += g_doublejump.value;
-		jump_timer = 400;
-	}
 
 	// Ramp boost
-	if (g_rampboost.integer) {
+	if (g_rampboost.integer && g_promode.integer) {
 		pm->ps->velocity[2] += JUMP_VELOCITY;
 		if (pm->ps->velocity[2] < JUMP_VELOCITY)
 			pm->ps->velocity[2] = JUMP_VELOCITY;
 	}
 	else
 		pm->ps->velocity[2] = JUMP_VELOCITY;
+
+	// Double jump
+	if (g_doublejump.value && g_promode.integer) {
+		if (pm->ps->stats[STAT_JUMPTIME] > 0)
+			pm->ps->velocity[2] += g_doublejump.value;
+		pm->ps->stats[STAT_JUMPTIME] = 400;
+	}
 
 	PM_AddEvent( EV_JUMP );
 
@@ -719,6 +701,8 @@ static void PM_AirMove( void )
 	float		wishspeed;
 	float		scale;
 	usercmd_t	cmd;
+	float		speed;
+	float		zspeed;
 
 	PM_Friction();
 
@@ -751,6 +735,26 @@ static void PM_AirMove( void )
 		PM_AirAccelerate (wishdir, wishspeed, g_strafeaccelerate.value);
 	else
 		PM_Accelerate (wishdir, wishspeed, g_airaccelerate.value);
+	
+	// Air control
+	if ( g_promode.integer && pm->cmd.rightmove == 0 && pm->cmd.forwardmove != 0 && 
+			wishspeed <= DotProduct (pm->ps->velocity, wishdir) ) {
+
+		zspeed = pm->ps->velocity[2];
+		pm->ps->velocity[2] = 0;
+
+		speed = VectorLength(pm->ps->velocity);
+
+		pm->ps->velocity[0] += wishdir[0] * speed * g_aircontrol.value;
+		pm->ps->velocity[1] += wishdir[1] * speed * g_aircontrol.value;
+
+		VectorNormalize(pm->ps->velocity);
+
+		for (i=0 ; i<2 ; i++)
+			pm->ps->velocity[i] = speed*pm->ps->velocity[i];
+
+		pm->ps->velocity[2] = zspeed;
+	}
 
 	// we may have a ground plane that is very steep, even
 	// though we don't have a groundentity
@@ -1996,10 +2000,10 @@ static void PM_DropTimers( void )
 	}
 
 	// drop post-jump counter
-	if ( jump_timer > 0 ) {
-		jump_timer -= pml.msec;
-		if ( jump_timer < 0 ) {
-			jump_timer = 0;
+	if ( pm->ps->stats[STAT_JUMPTIME] > 0 ) {
+		pm->ps->stats[STAT_JUMPTIME] -= pml.msec;
+		if ( pm->ps->stats[STAT_JUMPTIME] < 0 ) {
+			pm->ps->stats[STAT_JUMPTIME] = 0;
 		}
 	}
 }
