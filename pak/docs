@@ -16,7 +16,11 @@ Free ProMode is an OpenArena mod that provides CPM physics under the GPL v2 lice
 | float | g_airacclerate | Server | 1 | pm_airaccelerate: Air acceleration |
 | float | g_friction | Server | 6 | pm_friction: Ground friction |
 | bool | g_promode | Server | 0 | Turn CPM movement on or off. |
+| bool | g_killoverbounce | Server | 0 | Disable overbounce. |
 
 ## Notes
+
+There is no communication between the client and server to keep the physics Cvars in sync. This will result in inaccurate predictions the majority of the time. It is possible to fix this, but it would be wise to communicate as few Cvars as possible. I would suggest replacing the majority of Cvars with constants based off of g_promode and then only send g_promode over the network.
+
 I know that CPM is incorrect. If you have improvements, please tell me. I admit that I used some [code](https://web.archive.org/web/20070214143052/http://games.linuxdude.com/tamaps/archive/cpm1_dev_docs.zip) (It's a zip) that fell under the old Q3A mod license, but I have tried to purge it. This has resulted in a less accurate imitation of CPM physics. At least you have access to the source code as a result.  
 Source code is available under GPL v2 at <https://github.com/oitzujoey/origami_mod>. If it is gone, then try looking at <http://www.origamiparade.com>. If that's gone, try <https://www.archive.org>. If that's gone, well... you're probably out of luck, but I'd be amused to know that my mod survived the downfall of civilization.  

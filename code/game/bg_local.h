@@ -82,6 +82,7 @@ extern vmCvar_t g_wishspeed;
 extern vmCvar_t g_aircontrol;
 extern vmCvar_t g_doublejump;
 extern vmCvar_t g_rampboost;
+extern vmCvar_t g_killoverbounce;
 
 void PM_ClipVelocity( vec3_t in, vec3_t normal, vec3_t out, float overbounce );
 void PM_AddTouchEnt( int entityNum );

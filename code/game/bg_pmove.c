@@ -756,6 +756,8 @@ static void PM_AirMove( void )
 		pm->ps->velocity[2] = zspeed;
 	}
 
+	zspeed = pm->ps->velocity[2];
+
 	// we may have a ground plane that is very steep, even
 	// though we don't have a groundentity
 	// slide along the steep plane
@@ -775,6 +777,14 @@ static void PM_AirMove( void )
 #endif
 
 	PM_StepSlideMove ( qtrue );
+
+	// Did we collide with the ground? No? Set the overbounce flag.
+	// zspeed and pm->ps->veloicty[2] are both negative in a fall.
+	// If they are both positive, the result shouldn't matter.
+	if ( zspeed <= pm->ps->velocity[2] )
+		pm->ps->stats[STAT_OVERBOUNCE] = qfalse;
+	else
+		pm->ps->stats[STAT_OVERBOUNCE] = qtrue;
 }
 
 /*
@@ -829,7 +839,7 @@ static void PM_WalkMove( void )
 	}
 
 
-	if ( PM_CheckJump () ) {
+	if ( PM_CheckJump () || ( pm->ps->stats[STAT_OVERBOUNCE] && g_killoverbounce.integer ) ) {
 		// jumped away
 		if ( pm->waterlevel > 1 ) {
 			PM_WaterMove();

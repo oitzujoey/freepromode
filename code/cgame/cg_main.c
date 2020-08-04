@@ -315,6 +315,7 @@ vmCvar_t g_wishspeed;
 vmCvar_t g_aircontrol;
 vmCvar_t g_doublejump;
 vmCvar_t g_rampboost;
+vmCvar_t g_killoverbounce;
 
 typedef struct {
 	vmCvar_t *vmCvar;

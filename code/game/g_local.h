@@ -1189,6 +1189,7 @@ extern vmCvar_t g_wishspeed;
 extern vmCvar_t g_aircontrol;
 extern vmCvar_t g_doublejump;
 extern vmCvar_t g_rampboost;
+extern vmCvar_t g_killoverbounce;
 
 void	trap_Printf( const char *fmt );
 void	trap_Error( const char *fmt ) __attribute__((noreturn));

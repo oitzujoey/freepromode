@@ -206,6 +206,7 @@ vmCvar_t g_wishspeed;
 vmCvar_t g_aircontrol;
 vmCvar_t g_doublejump;
 vmCvar_t g_rampboost;
+vmCvar_t g_killoverbounce;
 
 mapinfo_result_t mapinfo;
 
@@ -434,7 +435,8 @@ static cvarTable_t gameCvarTable[] = {
 	{ &g_wishspeed, "g_wishspeed", "400", CVAR_ARCHIVE, 0, qtrue},
 	{ &g_aircontrol, "g_aircontrol", "0", CVAR_ARCHIVE, 0, qtrue},
 	{ &g_doublejump, "g_doublejump", "0", CVAR_ARCHIVE, 0, qtrue},
-	{ &g_rampboost, "g_rampboost", "0", CVAR_ARCHIVE, 0, qtrue}
+	{ &g_rampboost, "g_rampboost", "0", CVAR_ARCHIVE, 0, qtrue},
+	{ &g_killoverbounce, "g_killoverbounce", "0", CVAR_ARCHIVE, 0, qtrue}
 };
 
 // bk001129 - made static to avoid aliasing
