@@ -3,6 +3,8 @@
 
 Free ProMode is an OpenArena mod that provides CPM physics under the GPL v2 license.
 
+Note: I will likely not update this again. OpenArena's Ratmod has a much much better version. The movement is more accurate, and hitscan and projectile weapons are delagged and predicted. Ratmod can be found here: <https://github.com/rdntcntrl/ratoa_gamecode>
+
 ## Config
 
 | Type | Cvar | VM | Default | Description |
